@@ -455,4 +455,3 @@ repayments.logs
 *.appsettings.json
 src/config/appsettings.json
 src/config/appsettings.Development.json
-src/config/appsettings.Testing.json
