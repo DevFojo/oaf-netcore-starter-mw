@@ -8,10 +8,11 @@ using Xunit;
 using Bogus;
 using Domain.Entities;
 using System.Collections.Generic;
+using System;
 
 namespace Integration
 {
-    public class ServerFixture
+    public class ServerFixture : IDisposable
     {
         public readonly HttpClient client;
         public TestWorldRepository worldRepository;
@@ -32,12 +33,17 @@ namespace Integration
             worldRepository = new CouchbaseFixture().worldRepository;
         }
 
+        public void Dispose()
+        {
+             var result =  worldRepository.DeleteDocuments();
+        }
+
         private Faker<World> CreateWorldFaker()
         {
             return new Faker<World>()
             .RuleFor(p => p.Id, f => f.Random.Guid().ToString())
             .RuleFor(p => p.Name, f => f.PickRandom<string>(new List<string>{"Mercury", "Jupiter", "Mars","Earth", "Saturn"}))
-            .RuleFor(p => p.HasLife, f => f.Random.Bool())
+            .RuleFor(p => p.HasLife, f => true)
             .RuleFor(p => p.Entity, "World");
         }
     }
