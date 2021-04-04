@@ -14,5 +14,6 @@ namespace Application.Common.Interfaces
         Task<string> RemoveDocument(string id, TEntity entity);
         Task<TEntity> UpsertDocument(string id, TEntity entity);
         Task<TEntity> UpsertSubDocument(string documentId, string subDocumentId, dynamic subDocumentValue);
+        Task RemoveAllDocuments();
     }
 }

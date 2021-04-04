@@ -198,5 +198,23 @@ namespace Infrastructure.Persistence
 
             return id;
         }
+
+        // Binding was not working, I had to hardcode the worldtest, but there should be another way
+        public async Task RemoveAllDocuments()
+        {
+            var start = DateTime.Now;
+
+            string query = "DELETE from `WorldTest` where entity = $entity";
+            var cbResults = await _couchbaseContext.Bucket.Cluster
+                .QueryAsync<dynamic>(query,
+                                     options => options
+                                        .Parameter("entity", _entity));
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed RemoveAll operation on {Entity} in {Elapsed:000}ms",
+                _entity,
+                DateTime.Now.Subtract(start).Milliseconds);
+
+        }
     }
 }

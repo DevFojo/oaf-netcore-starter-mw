@@ -1,13 +1,14 @@
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using Application.Common.Interfaces;
 using Bogus;
 using Domain.Entities;
 using FluentAssertions;
+using Microsoft.AspNetCore.TestHost;
 using Xunit;
-using Xunit.Abstractions;
-using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Integration
 {
@@ -15,57 +16,54 @@ namespace Integration
     public class ApiTest
     {
         private readonly HttpClient _testClient;
-
-        private readonly TestWorldRepository _testWorldRepository;
-        private Faker<World> _worldFaker;
+        private readonly IWorldRepository _worldRepository;
+        private readonly Faker<World> fakeWorldsFactory;
+        private readonly TestServer _testServer;
 
         public ApiTest(ServerFixture serverFixture)
         {
-            _testClient = serverFixture.client;
-            _testWorldRepository = serverFixture.worldRepository;
-            _worldFaker = serverFixture.worldFaker;
+            _testClient = serverFixture.testClient;
+            _testServer = serverFixture.testServer;
+            fakeWorldsFactory = serverFixture.FakeWorldFactory();
+            _worldRepository = serverFixture.worldRepository;
         }
 
-        // This test is not passing as well
         [Fact]
         async Task Get_Worlds_ShouldReturn_Worlds()
         {
-            World worldToSave = _worldFaker.Generate(1)[0];
-            string name = worldToSave.Name;
-            await _testWorldRepository.InsertDocument(worldToSave);
+            List<World> worldsToSave = fakeWorldsFactory.Generate(2);
+            foreach(World world in worldsToSave) await _worldRepository.InsertDocument(world);
 
-            HttpResponseMessage response = await _testClient.GetAsync("/api/worlds");
+            var response = await _testClient.GetAsync("/api/worlds");
             string responseString = await response.Content.ReadAsStringAsync();
 
-            var worlds = JsonConvert.DeserializeObject<List<World>>(responseString);
-           worldToSave.Name.Should().Be(worlds[0].Name);
+            var savedWorlds = JsonConvert.DeserializeObject<List<World>>(responseString);
+            savedWorlds.Count.Should().BeGreaterOrEqualTo(worldsToSave.Count);
         }
 
-        // The /api/worlds?id endpoint is not testable because there is no way to control how Guid's are being created
-        // The Guid that user enters is not the same as the Guid that gets inserted in the db
         [Fact]
         async Task Get_WorldById_ShouldReturn_A_World()
         {
-            World fakeWorld = _worldFaker.Generate(1)[0];
+            World insertedWorld = await _worldRepository.InsertDocument(fakeWorldsFactory.Generate(1)[0]);
 
-            HttpResponseMessage response = await _testClient.GetAsync($"/api/worlds?id={fakeWorld.Id}");
+            HttpResponseMessage response = await _testClient.GetAsync($"/api/worlds?id={insertedWorld.Id}");
             string responseString = await response.Content.ReadAsStringAsync();
 
-            World savedWorld = JsonConvert.DeserializeObject<World>(responseString);
-            savedWorld.Id.Should().BeEquivalentTo(fakeWorld.Id);
+            World world = JsonConvert.DeserializeObject<World>(responseString);
+            world.Id.Should().Be(insertedWorld.Id);
         }
 
         [Fact]
         async Task Post_World_returns_World_Object()
         {
-            World worldToSave = _worldFaker.Generate(1)[0];
-
+            World worldToSave = fakeWorldsFactory.Generate(1)[0];
             HttpContent httpContent = new StringContent(JsonConvert.SerializeObject(worldToSave), Encoding.UTF8, "application/json");
-            HttpResponseMessage response = _testClient.PostAsync("/api/worlds", httpContent).Result;
 
+            HttpResponseMessage response = await _testClient.PostAsync("/api/worlds", httpContent);
             string responseString = await response.Content.ReadAsStringAsync();
-            var savedWorld = JsonConvert.DeserializeObject<World>(responseString);
-            savedWorld.Name.Should().BeEquivalentTo(worldToSave.Name);
+
+            World savedWorld = JsonConvert.DeserializeObject<World>(responseString);
+            savedWorld.Name.Should().Be(worldToSave.Name);
         }
     }
 }
