@@ -17,7 +17,6 @@ namespace IntegrationTests
     {
         public static IServiceScopeFactory serviceScopeFactory { get; private set; }
         public IConfigurationRoot _configuration { get; }
-        private readonly IConfiguration configuration;
         public readonly HttpClient client;
 
         public ServerFixture()

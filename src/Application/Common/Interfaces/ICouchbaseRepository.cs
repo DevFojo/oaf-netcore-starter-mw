@@ -14,5 +14,10 @@ namespace Application.Common.Interfaces
         Task<string> RemoveDocument(string id, TEntity entity);
         Task<TEntity> UpsertDocument(string id, TEntity entity);
         Task<TEntity> UpsertSubDocument(string documentId, string subDocumentId, dynamic subDocumentValue);
+        Task<bool> ExecuteRawQuery(string query);
+        Task BulkCreate(List<TEntity> documents);
+        Task<TEntity> ReplaceDocumentContent(string documentId, TEntity entity);
+        Task<TEntity> RemoveSubDocumentContent(string documentId, string subDocumentPath);
+        Task<TEntity> ReplaceSubDocumentContent(string documentId, string subDocumentPath, dynamic subDocumentValue);
     }
 }

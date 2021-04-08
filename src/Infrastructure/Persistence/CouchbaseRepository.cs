@@ -130,7 +130,7 @@ namespace Infrastructure.Persistence
             var start = DateTime.Now;
 
             await _couchbaseContext.Collection.MutateInAsync(
-                documentId,
+                $"{_entity}-{documentId}",
                 specs => specs.Insert(subDocumentId, subDocumentValue));
 
             _logger.LogInformation(
@@ -148,7 +148,7 @@ namespace Infrastructure.Persistence
             var start = DateTime.Now;
 
             await _couchbaseContext.Collection.MutateInAsync(
-                documentId,
+                $"{_entity}-{documentId}",
                 specs => specs.Upsert(subDocumentId, subDocumentValue));
 
             _logger.LogInformation(
@@ -158,7 +158,7 @@ namespace Infrastructure.Persistence
                 subDocumentId,
                 DateTime.Now.Subtract(start).Milliseconds);
 
-            return await UpsertDocument(documentId, await FindOneDocument(documentId));
+            return await FindOneDocument(documentId);
         }
 
         public async Task<TEntity> UpsertDocument(string id, TEntity entity)
@@ -195,6 +195,90 @@ namespace Infrastructure.Persistence
                 DateTime.Now.Subtract(start).Milliseconds);
 
             return id;
+        }
+
+        public async Task<bool> ExecuteRawQuery(string query)
+        {
+            var start = DateTime.Now;
+
+            var cbResults = await _couchbaseContext.Bucket.Cluster
+                .QueryAsync<dynamic>(query);
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed A raw query on {Entity} in {Elapsed:000}ms",
+                _entity,
+                DateTime.Now.Subtract(start).Milliseconds);
+
+            return cbResults.MetaData.Status == QueryStatus.Success;
+        }
+
+        public async Task BulkCreate(List<TEntity> documents)
+        {
+            var start = DateTime.Now;
+
+            var tasks = new List<Task>();
+            foreach(TEntity document in documents) await InsertDocument(document);
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed BulkCreate operation on {Entity} in {Elapsed:000}ms",
+                _entity,
+                DateTime.Now.Subtract(start).Milliseconds);
+
+        }
+
+        public async Task<TEntity> ReplaceDocumentContent(string documentId, TEntity entity)
+        {
+            var start = DateTime.Now;
+
+            entity.Entity = _entity;
+            entity.Id = entity.Id == null ? Guid.NewGuid().ToString() : entity.Id;
+            entity.CreatedAt = DateTime.Now;
+            entity.UpdatedAt = DateTime.Now;
+
+            await _couchbaseContext.Collection.ReplaceAsync($"{_entity}-{documentId}", entity);
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed ReplaceDocumentContent operation on {Entity} with {Id} in {Elapsed:000}ms",
+                entity,
+                entity.Id,
+                DateTime.Now.Subtract(start).Milliseconds);
+
+            return await FindOneDocument(documentId);
+        }
+
+        public async Task<TEntity> RemoveSubDocumentContent(string documentId, string subDocumentPath)
+        {
+            var start = DateTime.Now;
+
+            var results = await _couchbaseContext.Collection.MutateInAsync(
+                $"{_entity}-{documentId}",
+                specs => specs.Remove(subDocumentPath));
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed RemoveSubDocumentContent operation on {Entity} with {Id} and {SubDocumentId} in {Elapsed:000}ms",
+                _entity,
+                documentId,
+                subDocumentPath,
+                DateTime.Now.Subtract(start).Milliseconds);
+
+            return await FindOneDocument(documentId);
+        }
+
+        public async Task<TEntity> ReplaceSubDocumentContent(string documentId, string subDocumentPath, dynamic subDocumentValue)
+        {
+            var start = DateTime.Now;
+
+            var results = await _couchbaseContext.Collection.MutateInAsync(
+                $"{_entity}-{documentId}",
+                specs => specs.Replace(subDocumentPath, subDocumentValue));
+
+            _logger.LogInformation(
+                "CouchbaseOperation: Executed ReplaceSubDocumentContent operation on {Entity} with {Id} and {SubDocumentId} in {Elapsed:000}ms",
+                _entity,
+                documentId,
+                subDocumentPath,
+                DateTime.Now.Subtract(start).Milliseconds);
+            return await FindOneDocument(documentId);
         }
     }
 }
